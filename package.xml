@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>music_perception</name>
+  <version>0.0.0</version>
+  <description>Detect and visualize notes in audio signals. As of now limited to note extraction.</description>
+
+  <maintainer email="me@v4hn.de">v4hn</maintainer>
+
+  <license>BSD</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <depend>audio_common_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+
+  <build_depend>message_generation</build_depend>
+  <exec_depend>message_runtime</exec_depend>
+</package>
