@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="min_note" value="C2" />
+  <param name="max_note" value="D6" />
+
+  <node name="onset_detector" pkg="music_perception" type="detect_onset.py" output="screen">
+    <param name="semitones_above" value="26" />
+
+    <param name="reference_amplitude" value="106.0" />
+    <param name="loudest_expected_db" value="50.0" />
+  </node>
+</launch>

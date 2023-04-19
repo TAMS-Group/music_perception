@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- TODO: update with whatever ends up as the interface -->
+  <node name="onset_detector" pkg="music_perception" type="detect_onset.py" output="screen">
+    <param name="min_note", value="C4" />
+    <param name="max_note", value="C6" />
+
+    <param name="semitones_above", value="26" />
+
+    <!-- uncalibrated values -->
+    <param name="reference_amplitude" value="0.0" />
+	  <param name="loudest_expected_db" value="40.0" />
+
+  </node>
+</launch>

@@ -57,20 +57,22 @@ class OnsetDetector:
         self.sr = 44100
         self.hop_length = 512
 
-        # # harp
-        # self.fmin_note = "C4"
-        # self.fmax_note = "C6"
-        # self.semitones = 62
+        self.min_note = rospy.get_param("min_note")
+        self.min_freq = librosa.note_to_hz(self.min_note)
+        self.min_midi = librosa.note_to_midi(self.min_note)
 
-        # guzheng
-        self.fmin_note = "C2"
-        self.fmax_note = "C8"
-        self.semitones = 84
+        self.max_note = rospy.get_param("max_note")
+        self.max_freq = librosa.note_to_hz(self.max_note)
+        self.max_midi = librosa.note_to_midi(self.max_note)
 
-        self.fmin = librosa.note_to_hz(self.fmin_note)
-        self.fmax = librosa.note_to_hz(self.fmax_note)
+        # how many semitones above the highest note to include to analyze harmonics (recommend 24+eps for 3 overtones+wiggle room)
+        semitones_above = rospy.get_param("~semitones_above")
+        self.semitones = semitones_above + self.max_midi - self.min_midi
 
-        # self.cmap = plt.get_cmap("gist_rainbow").copy()
+        # if provided, db values will be given relative to this amplitude value
+        self.reference_amplitude = rospy.get_param("~reference_amplitude", np.inf)
+        self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
+
         hsv = plt.get_cmap("hsv")
         self.cmap = ListedColormap(np.vstack((
             hsv(np.linspace(0, 1, 86)),
@@ -153,26 +155,19 @@ class OnsetDetector:
         spec = spec[:, self.overlap_hops:-self.overlap_hops]
         onsets = [o - self.window_overlap_t for o in onsets]
 
-        log_spec = np.log(spec)
-
         if self.spectrogram is None:
-            self.spectrogram = log_spec
+            self.spectrogram = spec
             return
         elif self.spectrogram.shape[1] > spec.shape[1]:
             self.spectrogram = self.spectrogram[:, -spec.shape[1]:]
-        self.spectrogram = np.concatenate([self.spectrogram, log_spec], 1)
+        self.spectrogram = np.concatenate([self.spectrogram, spec], 1)
 
-        # normalizes per compute
+        # cut noise floor and normalize spectrogram in uint8
+        spectrogram = np.maximum(0.0, self.spectrogram)
+        upper_bound = max(self.loudest_expected_db, np.max(spectrogram))
         spectrogram = np.array(
-            self.spectrogram / np.max(self.spectrogram) * 255, dtype=np.uint8
+            spectrogram*255 / upper_bound, dtype=np.uint8
         )
-        # # absolute normalization for log image
-        # absolute_log_threshold= 12.0
-        # spectrogram= np.array(np.minimum(
-        #     255,
-        #     self.spectrogram/absolute_log_threshold*255
-        #     ),
-        #     dtype=np.uint8)
 
         heatmap = cv2.applyColorMap(spectrogram, cv2.COLORMAP_JET)
         LINECOLOR = [255, 0, 255]
@@ -221,7 +216,6 @@ class OnsetDetector:
                 return reduce(lambda x, y: x + y, buckets.get(note))
             winner = max(buckets, key=lambda a: add_confidence(a))
             winner_freq = librosa.note_to_hz(winner)
-            rospy.loginfo(f"found frequency {winner} ({winner_freq})")
             return winner_freq, max(buckets[winner])
         else:
             return 0.0, 0.0
@@ -240,7 +234,7 @@ class OnsetDetector:
     def publish_cqt(self, cqt):
         msg = CQTStamped()
         msg.number_of_semitones = self.semitones
-        msg.min_note = self.fmin_note
+        msg.min_note = self.min_note
         msg.hop_length = rospy.Duration(self.hop_length / self.sr)
 
         msg.header.stamp = \
@@ -250,16 +244,17 @@ class OnsetDetector:
         self.pub_cqt.publish(msg)
 
     def cqt(self):
-        # TODO: subtract mean background noise from CQT
-        return np.abs(
+        cqt = np.abs(
             librosa.cqt(
                 y=self.buffer,
                 sr=self.sr,
                 hop_length=self.hop_length,
-                fmin=self.fmin,
+                fmin=self.min_freq,
                 n_bins=self.semitones,
             )
         )
+        # rospy.loginfo(f"max cqt: {np.max(cqt)}")
+        return librosa.amplitude_to_db(cqt, ref=self.reference_amplitude)
 
     def audio_cb(self, msg):
         now = msg.header.stamp
@@ -306,17 +301,14 @@ class OnsetDetector:
         if self.buffer.shape[0] < self.window + 2 * self.window_overlap:
             return
 
-        # TODO: it would be better to do the computation below asynchronously
+        # TODO: it would be nicer to run the computation below asynchronously
 
-        # constant q transform with 96 half-tones from C2
-        # in theory we only need notes from D2-D6, but in practice tuning
-        # is often too low and harmonics are needed above D6
         cqt = self.cqt()
 
         self.publish_cqt(cqt)
 
         onset_env_cqt = librosa.onset.onset_strength(
-            sr=self.sr, S=librosa.amplitude_to_db(cqt, ref=np.max)
+            sr=self.sr, S=cqt
         )
         onsets_cqt_raw = librosa.onset.onset_detect(
             y=self.buffer,
@@ -355,6 +347,17 @@ class OnsetDetector:
             if fundamental_frequency != 0.0:
                 no.note = librosa.hz_to_note(fundamental_frequency)
                 no.confidence = confidence
+
+                # mean over ~300ms window (~25 samples) after onset
+                onset_hop = int(o * self.sr / self.hop_length)
+                note_idx= librosa.note_to_midi(no.note) - self.min_midi
+                try:
+                    no.loudness = cqt[note_idx, onset_hop:onset_hop+25].mean()
+                except IndexError:
+                    no.loudness = 0.0
+
+                rospy.loginfo(f"found note {no.note} at {t.to_sec()} with confidence {no.confidence} and loudness {no.loudness}dB")
+
             self.pub_onset.publish(no)
 
         if len(onsets_cqt) == 0:
