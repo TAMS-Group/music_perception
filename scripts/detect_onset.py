@@ -26,11 +26,7 @@ import struct
 class OnsetDetector:
     @staticmethod
     def unpack_data(data):
-        return np.array(struct.unpack(
-            f"{int(len(data) / 2)}h",
-            bytes(data)
-            ),
-            dtype=float)
+        return np.frombuffer(data, dtype=np.int16).astype(float)
 
     def check_audio_format(self):
         rospy.loginfo("Waiting for Audio Info")
