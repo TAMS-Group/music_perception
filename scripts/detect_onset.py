@@ -73,14 +73,6 @@ class OnsetDetector:
         self.reference_amplitude = rospy.get_param("~reference_amplitude", np.inf)
         self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
 
-        hsv = plt.get_cmap("hsv")
-        self.cmap = ListedColormap(np.vstack((
-            hsv(np.linspace(0, 1, 86)),
-            hsv(np.linspace(0, 1, 85)),
-            hsv(np.linspace(0, 1, 85)))
-            ))
-        self.cmap.set_bad((0, 0, 0, 1))  # make sure they are visible
-
         # number of samples for analysis window
         self.window_t = 1.0
         # and overlap regions between consecutive windows
@@ -219,17 +211,6 @@ class OnsetDetector:
             return winner_freq, max(buckets[winner])
         else:
             return 0.0, 0.0
-
-    def color_from_freq(self, freq):
-        if freq > 0.0:
-            return ColorRGBA(
-                *self.cmap(
-                    (np.log(freq) - np.log(self.fmin)) /
-                    (np.log(self.fmax) - np.log(self.fmin))
-                    )
-                )
-        else:
-            return ColorRGBA(*self.cmap.get_bad())
 
     def publish_cqt(self, cqt):
         msg = CQTStamped()
