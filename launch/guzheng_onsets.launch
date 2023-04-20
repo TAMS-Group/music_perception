@@ -6,7 +6,7 @@
   <node name="onset_detector" pkg="music_perception" type="detect_onset.py" output="screen">
     <param name="semitones_above" value="26" />
 
-    <param name="reference_amplitude" value="106.0" />
+    <param name="reference_amplitude" value="500.0" />
     <param name="loudest_expected_db" value="50.0" />
   </node>
 </launch>
