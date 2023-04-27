@@ -15,6 +15,7 @@ DIRECTORY
 FILES
   CQTStamped.msg
   NoteOnset.msg
+  Piece.msg
 )
 
 generate_messages(
