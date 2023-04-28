@@ -190,10 +190,11 @@ class OnsetDetector:
             fig = plt.figure(dpi= 300)
             fig.gca().set_title("Onset envelope")
             fig.gca().plot(np.concatenate((self.last_envelope, envelope[self.overlap_hops:-self.overlap_hops])))
-            # fig.gca().set_ylim((0, 30))
+            fig.gca().set_ylim((0, np.max((5, np.max(envelope)))))
             fig.canvas.draw()
             w, h = fig.canvas.get_width_height()
             env_img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(h, w, 3)
+            plt.close(fig)
             self.pub_envelope.publish(self.cv_bridge.cv2_to_imgmsg(env_img, "rgb8"))
         self.last_envelope = envelope[self.overlap_hops:-self.overlap_hops]
 
