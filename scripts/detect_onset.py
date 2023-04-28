@@ -74,7 +74,7 @@ class OnsetDetector:
         # if provided, db values will be given relative to this amplitude value
         self.reference_amplitude = rospy.get_param("~reference_amplitude", np.inf)
         self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
-        self.onsets_delta = rospy.get_param("~onsets_delta", 1.0)
+        self.onset_delta = rospy.get_param("~onset_delta", 3.0)
 
         # number of samples for analysis window
         self.window_t = 1.0
@@ -321,7 +321,7 @@ class OnsetDetector:
             units="time",
             backtrack=False,
             # wait= 0.1*self.sr/self.hop_length,
-            delta=self.onsets_delta,
+            delta=self.onset_delta,
             normalize=False,
         )
 
