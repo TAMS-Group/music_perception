@@ -1,0 +1,16 @@
+<launch>
+  <!-- this node expects parameters `max_note` and `min_note` set externally -->
+
+  <arg name="semitones_above" default="26" doc="how many semitones should be included in spectrum above highest note"/>
+
+  <arg name="reference_amplitude" doc="reference for dB computation. Usually noise-floor"/>
+  <arg name="onset_delta" doc="threshold for detecting onset peaks" />
+  <arg name="loudest_expected_db" doc="to scale published spectrogram to useful values" />
+
+  <node name="onset_detector" pkg="music_perception" type="detect_onset.py" output="screen">
+    <param name="semitones_above" value="$(arg semitones_above)" />
+    <param name="reference_amplitude" value="$(arg reference_amplitude)" />
+    <param name="onset_delta" value="$(arg onset_delta)"  />
+    <param name="loudest_expected_db" value="$(arg loudest_expected_db)"/>
+  </node>
+</launch>
