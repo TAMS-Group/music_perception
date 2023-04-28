@@ -18,6 +18,8 @@
   <build_depend>message_generation</build_depend>
   <exec_depend>message_runtime</exec_depend>
 
+  <exec_depend>lilypond</exec_depend>
+
   <depend>load_venv</depend>
   <export>
     <load_venv requirements="${prefix}/requirements.txt" />
