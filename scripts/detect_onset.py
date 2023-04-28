@@ -257,7 +257,7 @@ class OnsetDetector:
             )
         )
         # rospy.loginfo(f"max cqt: {np.max(cqt)}")
-        return librosa.amplitude_to_db(cqt, ref=self.reference_amplitude)
+        return np.maximum(0.0, librosa.amplitude_to_db(cqt, ref=self.reference_amplitude))
 
     def audio_cb(self, msg):
         now = msg.header.stamp
