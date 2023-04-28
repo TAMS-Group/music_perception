@@ -15,6 +15,8 @@ import crepe.core
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+plt.switch_backend('agg')
+
 from matplotlib.colors import ListedColormap
 
 from functools import reduce
@@ -120,6 +122,9 @@ class OnsetDetector:
         self.pub_onset = rospy.Publisher(
             "onsets", NoteOnset, queue_size=100, tcp_nodelay=True
         )
+        self.pub_envelope = rospy.Publisher(
+            "~envelope", Image, queue_size=1, tcp_nodelay=True
+        )
 
         self.sub = rospy.Subscriber(
             "audio_stamped",
@@ -138,7 +143,9 @@ class OnsetDetector:
         self.spectrogram = None
         self.previous_onsets = []
 
-    def update_spectrogram(self, spec, onsets):
+        self.last_envelope = None
+
+    def publish_spectrogram(self, spec, onsets):
         if self.pub_spectrogram.get_num_connections() == 0:
             self.spectrogram = None
             return
@@ -176,6 +183,19 @@ class OnsetDetector:
         self.pub_spectrogram.publish(
             self.cv_bridge.cv2_to_imgmsg(heatmap, "bgr8")
             )
+
+    def publish_envelope(self, envelope):
+        if self.last_envelope is not None and self.pub_envelope.get_num_connections() > 0:
+            fig = plt.figure(dpi= 300)
+            fig.gca().set_title("Onset envelope")
+            fig.gca().plot(np.concatenate((self.last_envelope, envelope[self.overlap_hops:-self.overlap_hops])))
+            # fig.gca().set_ylim((0, 30))
+            fig.canvas.draw()
+            w, h = fig.canvas.get_width_height()
+            env_img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(h, w, 3)
+            self.pub_envelope.publish(self.cv_bridge.cv2_to_imgmsg(env_img, "rgb8"))
+        self.last_envelope = envelope[self.overlap_hops:-self.overlap_hops]
+
 
     def fundamental_frequency_for_onset(self, onset):
         prediction_averaging_window = (
@@ -315,7 +335,8 @@ class OnsetDetector:
             if in_window(o)
         ]
 
-        self.update_spectrogram(cqt, onsets_cqt)
+        self.publish_spectrogram(cqt, onsets_cqt)
+        self.publish_envelope(onset_env_cqt)
 
         # publish events and plot visualization
         for o in onsets_cqt:
