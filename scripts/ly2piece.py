@@ -5,7 +5,7 @@
 
 from collections import namedtuple
 import librosa
-from mido import MidiFile, MetaMessage, MidiTrack
+from mido import MidiFile
 from music_perception.msg import NoteOnset, Piece
 import os.path
 import rospy
@@ -41,8 +41,8 @@ with MidiFile(os.path.join(dir.name, 'score.midi')) as midi:
                     NoteOnset(
                         header= std_msgs.msg.Header(stamp= rospy.Time(ongoing[on.note].time)),
                         note = librosa.midi_to_note(on.note),
-                        # TODO: The linear velocity values 0-255 should be transferred to a dB scale
-                        #       At the very least the subscriber needs to scale the values
+                        # These are MIDI velocity values 0-127, not loudness (and not dB scaled)
+                        # the mapping has to be left to the subscriber https://www.cs.cmu.edu/~rbd/papers/velocity-icmc2006.pdf
                         loudness= ongoing[on.note].velocity,
                         duration= rospy.Duration(now - ongoing[on.note].time)
                     )
