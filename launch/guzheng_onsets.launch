@@ -8,5 +8,6 @@
     <arg name="reference_amplitude" value="480.0" />
     <arg name="onset_delta" value="0.5" />
     <arg name="loudest_expected_db" value="50.0" />
+    <arg name="drift_s_per_hour" value="0.1" />
   </include>
 </launch>

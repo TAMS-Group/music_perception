@@ -76,6 +76,12 @@ class OnsetDetector:
         self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
         self.onset_delta = rospy.get_param("~onset_delta", 3.0)
 
+        # mechanism to compensate for clock drift in the /audio_stamped topic
+        # ideally this should be compensated in the audio driver, but this is a local workaround
+        # as I'm unsure how well the concept generalizes
+        self.drift_per_hour = rospy.Duration(rospy.get_param("~drift_s_per_hour", 0.0))
+        self.startup_time = rospy.Time()
+
         # number of samples for analysis window
         self.window_t = 1.0
         # and overlap regions between consecutive windows
@@ -108,6 +114,17 @@ class OnsetDetector:
 
         self.first_input = True
 
+        rospy.loginfo(
+            f"Onset detector ready using parameters:\n"
+            f"min_note: {self.min_note}\n"
+            f"max_note: {self.max_note}\n"
+            f"semitones_above: {semitones_above}\n"
+            f"reference_amplitude: {self.reference_amplitude}\n"
+            f"loudest_expected_db: {self.loudest_expected_db}\n"
+            f"onset_delta: {self.onset_delta}\n"
+            f"drift_s_per_hour: {self.drift_per_hour.to_sec()}"
+        )
+
     def start(self):
         self.pub_spectrogram = rospy.Publisher(
             "spectrogram", Image, queue_size=1, tcp_nodelay=True
@@ -125,6 +142,10 @@ class OnsetDetector:
         )
         self.pub_envelope = rospy.Publisher(
             "~envelope", Image, queue_size=1, tcp_nodelay=True
+        )
+
+        self.pub_drift = rospy.Publisher(
+            "~drift", Float32, queue_size=1
         )
 
         self.sub = rospy.Subscriber(
@@ -145,6 +166,10 @@ class OnsetDetector:
         self.previous_onsets = []
 
         self.last_envelope = None
+
+    @property
+    def current_drift(self) -> rospy.Duration:
+        return self.drift_per_hour * (self.buffer_time - self.startup_time).to_sec() / 3600.0
 
     def publish_spectrogram(self, spec, onsets):
         if self.pub_spectrogram.get_num_connections() == 0:
@@ -241,7 +266,7 @@ class OnsetDetector:
         msg.hop_length = rospy.Duration(self.hop_length / self.sr)
 
         msg.header.stamp = \
-            self.buffer_time + rospy.Duration(self.window_overlap_t)
+            self.buffer_time + rospy.Duration(self.window_overlap_t) + self.current_drift
         msg.data = \
             cqt[:, self.overlap_hops:-self.overlap_hops].flatten(order="F")
         self.pub_cqt.publish(msg)
@@ -287,13 +312,16 @@ class OnsetDetector:
             self.buffer_time = \
                 end_of_buffer_time + rospy.Duration((jump-1) * (len(msg_data)/self.sr))
 
-        self.first_input = False
         self.last_time = now
         self.last_seq = seq
 
         # take time from message headers and increment based on data
         if self.buffer_time is None:
             self.buffer_time = now
+            if self.first_input:
+                self.startup_time = now
+
+        self.first_input = False
 
         self.buffer = np.concatenate([
             self.buffer,
@@ -344,7 +372,7 @@ class OnsetDetector:
         for o in onsets_cqt:
             fundamental_frequency, confidence = \
                 self.fundamental_frequency_for_onset(o)
-            t = self.buffer_time + rospy.Duration(o)
+            t = self.buffer_time + self.current_drift + rospy.Duration(o)
 
             no = NoteOnset()
             no.header.stamp = t
@@ -378,6 +406,7 @@ class OnsetDetector:
         self.pub_compute_time.publish(compute_time.to_sec())
         if compute_time > rospy.Duration(self.window):
             rospy.logerr("computation took longer than processed window")
+        self.pub_drift.publish(self.current_drift.to_sec())
 
 
 def main():
