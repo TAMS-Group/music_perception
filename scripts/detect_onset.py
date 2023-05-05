@@ -271,13 +271,13 @@ class OnsetDetector:
             self.reset()
         elif seq != self.last_seq + 1 and not self.first_input:
             rospy.logwarn(f"something weird happened, seq jumped from {self.last_seq} to {seq}")
-        elif self.buffer_time is not None and (time_difference := self.buffer_time + rospy.Duration(self.buffer.shape[0]/self.sr) - now) > rospy.Duration(0.005):
-            rospy.logwarn(f"lost audio samples worth {time_difference.to_sec()}s. will drop remaining buffer and start over.")
+        elif self.buffer_time is not None and (time_difference := now - (self.buffer_time + rospy.Duration(self.buffer.shape[0]/self.sr))) > rospy.Duration(0.005):
+            rospy.logerr_throttle(5.0, f"lost audio samples worth {time_difference.to_sec()}s. will drop remaining buffer and start over.")
             self.reset()
         if seq > self.last_seq + 1 and not self.first_input:
             jump = seq-self.last_seq
             rospy.logwarn(
-                f"sample drop detected: seq jumped "
+                f"ros message drop detected: seq jumped "
                 f"from {self.last_seq} to {seq} "
                 f"(difference of {jump})"
             )
