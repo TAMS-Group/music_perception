@@ -351,6 +351,8 @@ class OnsetDetector:
             # wait= 0.1*self.sr/self.hop_length,
             delta=self.onset_delta,
             normalize=False,
+            pre_max= 0.3*self.sr//self.hop_length,
+            post_max= 0.3*self.sr//self.hop_length,
         )
 
         def in_window(o):
