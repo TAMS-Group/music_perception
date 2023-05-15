@@ -390,7 +390,7 @@ class OnsetDetector:
                 except IndexError:
                     no.loudness = 0.0
 
-                rospy.loginfo(f"found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB at {t.to_sec()}")
+                rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB")
 
             self.pub_onset.publish(no)
 
