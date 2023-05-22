@@ -76,6 +76,9 @@ class OnsetDetector:
         self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
         self.onset_delta = rospy.get_param("~onset_delta", 3.0)
 
+        self.perceptual_weighting = rospy.get_param("~perceptual_weighting", True)
+        self.log_max_raw_cqt = rospy.get_param("~log_max_raw_cqt", False)
+
         # mechanism to compensate for clock drift in the /audio_stamped topic
         # ideally this should be compensated in the audio driver, but this is a local workaround
         # as I'm unsure how well the concept generalizes
@@ -122,7 +125,8 @@ class OnsetDetector:
             f"reference_amplitude: {self.reference_amplitude}\n"
             f"loudest_expected_db: {self.loudest_expected_db}\n"
             f"onset_delta: {self.onset_delta}\n"
-            f"drift_s_per_hour: {self.drift_per_hour.to_sec()}"
+            f"drift_s_per_hour: {self.drift_per_hour.to_sec()}\n"
+            f"perceptual_weighting: {self.perceptual_weighting}\n"
         )
 
     def start(self):
@@ -281,8 +285,19 @@ class OnsetDetector:
                 n_bins=self.semitones,
             )
         )
-        # rospy.loginfo(f"max cqt: {np.max(cqt)}")
-        return np.maximum(0.0, librosa.amplitude_to_db(cqt, ref=self.reference_amplitude))
+
+        if self.log_max_raw_cqt:
+            rospy.loginfo(f"max cqt: {np.max(cqt)}")
+
+        cqt_db = librosa.amplitude_to_db(cqt, ref=self.reference_amplitude)
+        cqt_db = np.maximum(0.0, cqt_db)
+
+        if self.perceptual_weighting:
+            # TODO: possibly use https://github.com/keunwoochoi/perceptual_weighting , but that requires SPL
+            cqt_frequencies = librosa.cqt_frequencies(cqt.shape[0], fmin= self.min_freq)
+            cqt_db+= librosa.frequency_weighting(cqt_frequencies, kind= 'A')[:, np.newaxis]
+
+        return cqt_db
 
     def audio_cb(self, msg):
         now = msg.header.stamp
