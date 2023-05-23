@@ -290,12 +290,13 @@ class OnsetDetector:
             rospy.loginfo(f"max cqt: {np.max(cqt)}")
 
         cqt_db = librosa.amplitude_to_db(cqt, ref=self.reference_amplitude)
-        cqt_db = np.maximum(0.0, cqt_db)
 
         if self.perceptual_weighting:
             # TODO: possibly use https://github.com/keunwoochoi/perceptual_weighting , but that requires SPL
             cqt_frequencies = librosa.cqt_frequencies(cqt.shape[0], fmin= self.min_freq)
             cqt_db+= librosa.frequency_weighting(cqt_frequencies, kind= 'A')[:, np.newaxis]
+
+        cqt_db = np.maximum(0.0, cqt_db)
 
         return cqt_db
 
