@@ -267,7 +267,8 @@ class OnsetDetector:
         msg = CQTStamped()
         msg.number_of_semitones = self.semitones
         msg.min_note = self.min_note
-        msg.hop_length = rospy.Duration(self.hop_length / self.sr)
+        msg.hop_length = self.hop_length
+        msg.sample_rate = self.sr
 
         msg.header.stamp = \
             self.buffer_time + rospy.Duration(self.window_overlap_t) + self.current_drift
