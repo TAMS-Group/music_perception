@@ -399,11 +399,11 @@ class OnsetDetector:
                 no.note = librosa.hz_to_note(fundamental_frequency)
                 no.confidence = confidence
 
-                # mean over ~300ms window (~25 samples) after onset
+                # look at ~300ms window (~25 samples) after onset
                 onset_hop = int(o * self.sr / self.hop_length)
                 note_idx= librosa.note_to_midi(no.note) - self.min_midi
                 try:
-                    no.loudness = cqt[note_idx, onset_hop:onset_hop+25].mean()
+                    no.loudness = cqt[note_idx, onset_hop:onset_hop+25].max()
                 except IndexError:
                     no.loudness = 0.0
 
