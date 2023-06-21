@@ -19,6 +19,6 @@ ly= open(sys.argv[1], 'r').read()
 
 piece = piece_from_ly(ly)
 rospy.init_node('ly2piece')
-pub = rospy.Publisher('piece', Piece, queue_size= 1, latch= True)
+pub = rospy.Publisher('piece_midi_loudness', Piece, queue_size= 1, latch= True)
 pub.publish(piece)
 rospy.spin()

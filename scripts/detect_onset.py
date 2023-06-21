@@ -366,7 +366,7 @@ class OnsetDetector:
             units="time",
             backtrack=False,
             # wait= 0.1*self.sr/self.hop_length,
-            delta=self.onset_delta,
+            delta=self.onset_delta, # TODO: scale delta as 1.96 * stddev of last seconds
             normalize=False,
             pre_max= 0.3*self.sr//self.hop_length,
             post_max= 0.3*self.sr//self.hop_length,
