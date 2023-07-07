@@ -86,12 +86,15 @@ class OnsetDetector:
         self.startup_time = rospy.Time()
 
         # number of samples for analysis window
-        self.window_t = 1.0
+        self.window_t = rospy.get_param("~window_size", 1.0)
         # and overlap regions between consecutive windows
-        self.window_overlap_t = 0.5
+        self.window_overlap_t = rospy.get_param("~window_overlap", 0.5)
+        # length of image spectrum
+        self.spectrum_length_t = rospy.get_param("~spectrum_length", 2.0)
 
         self.window = int(self.sr * self.window_t)
         self.window_overlap = int(self.sr * self.window_overlap_t)
+        self.spectrum_length = int(self.sr * self.spectrum_length_t / self.hop_length)
 
         self.overlap_hops = int(self.window_overlap / self.hop_length)
 
@@ -127,6 +130,9 @@ class OnsetDetector:
             f"onset_delta: {self.onset_delta}\n"
             f"drift_s_per_hour: {self.drift_per_hour.to_sec()}\n"
             f"perceptual_weighting: {self.perceptual_weighting}\n"
+            f"window_size: {self.window_t}\n"
+            f"window_overlap: {self.window_overlap_t}\n"
+            f"spectrum_length: {self.spectrum_length_t}\n"
         )
 
     def start(self):
@@ -167,7 +173,7 @@ class OnsetDetector:
 
         # visualization
         self.spectrogram = None
-        self.previous_onsets = []
+        self.current_onsets = []
 
         self.last_envelope = None
 
@@ -182,14 +188,21 @@ class OnsetDetector:
 
         # throw away overlap
         spec = spec[:, self.overlap_hops:-self.overlap_hops]
-        onsets = [o - self.window_overlap_t for o in onsets]
+        spec_length_hops = spec.shape[1]
+        spec_length_t = spec_length_hops * self.hop_length / self.sr
+
+        spectrogram_offset = self.spectrogram.shape[1] if self.spectrogram is not None else 0
+
+        self.current_onsets += [int((o - self.window_overlap_t) * self.sr / self.hop_length) + spectrogram_offset for o in onsets]
 
         if self.spectrogram is None:
             self.spectrogram = spec
-            return
-        elif self.spectrogram.shape[1] > spec.shape[1]:
-            self.spectrogram = self.spectrogram[:, -spec.shape[1]:]
-        self.spectrogram = np.concatenate([self.spectrogram, spec], 1)
+        else:
+            self.spectrogram = np.concatenate([self.spectrogram, spec], 1)
+            if self.spectrogram.shape[1] > self.spectrum_length:
+                drop_length = self.spectrogram.shape[1] - self.spectrum_length
+                self.spectrogram = self.spectrogram[:, drop_length:]
+                self.current_onsets = [o - drop_length for o in self.current_onsets if o >= spec_length_hops]
 
         # cut noise floor and normalize spectrogram in uint8
         spectrogram = np.maximum(0.0, self.spectrogram)
@@ -200,15 +213,8 @@ class OnsetDetector:
 
         heatmap = cv2.applyColorMap(spectrogram, cv2.COLORMAP_JET)
         LINECOLOR = [255, 0, 255]
-        for o in self.previous_onsets:
-            heatmap[:, int(o * self.sr / self.hop_length)][:] = LINECOLOR
-        for o in onsets:
-            heatmap[
-                :,
-                int(self.window / self.hop_length +
-                    o * self.sr / self.hop_length)
-            ][:] = LINECOLOR
-        self.previous_onsets = onsets
+        for o in self.current_onsets:
+            heatmap[:, o][:] = LINECOLOR
 
         self.pub_spectrogram.publish(
             self.cv_bridge.cv2_to_imgmsg(heatmap, "bgr8")
@@ -226,7 +232,6 @@ class OnsetDetector:
             plt.close(fig)
             self.pub_envelope.publish(self.cv_bridge.cv2_to_imgmsg(env_img, "rgb8"))
         self.last_envelope = envelope[self.overlap_hops:-self.overlap_hops]
-
 
     def fundamental_frequency_for_onset(self, onset):
         prediction_averaging_window = (

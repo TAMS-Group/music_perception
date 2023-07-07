@@ -12,6 +12,11 @@
 
   <arg name="perceptual_weighting" default="true" doc="Apply perceptual weighting to dB-scaled cqt" />
 
+  <arg name="window_size" default="1.0" doc="window size for onset detection" />
+  <arg name="window_overlap" default="0.5" doc="window overlap for onset detection" />
+
+  <arg name="spectrum_length" default="2.0" doc="length of image spectrum to publish" />
+
   <node name="onset_detector" pkg="music_perception" type="detect_onset.py" output="screen">
     <param name="semitones_above" value="$(arg semitones_above)" />
     <param name="reference_amplitude" value="$(arg reference_amplitude)" />
@@ -20,5 +25,8 @@
     <param name="drift_s_per_hour" value="$(arg drift_s_per_hour)"/>
     <param name="perceptual_weighting" value="$(arg perceptual_weighting)"/>
     <param name="log_max_raw_cqt" value="$(arg log_max_raw_cqt)"/>
+    <param name="window_size" value="$(arg window_size)"/>
+    <param name="window_overlap" value="$(arg window_overlap)"/>
+    <param name="spectrum_length" value="$(arg spectrum_length)"/>
   </node>
 </launch>
