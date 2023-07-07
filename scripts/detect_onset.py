@@ -74,7 +74,10 @@ class OnsetDetector:
         # if provided, db values will be given relative to this amplitude value
         self.reference_amplitude = rospy.get_param("~reference_amplitude", np.inf)
         self.loudest_expected_db = rospy.get_param("~loudest_expected_db", 120.0)
+
         self.onset_delta = rospy.get_param("~onset_delta", 3.0)
+        self.ctx_pre = rospy.get_param("~ctx_pre", 0.3)
+        self.ctx_post = rospy.get_param("~ctx_post", 0.3)
 
         self.perceptual_weighting = rospy.get_param("~perceptual_weighting", True)
         self.log_max_raw_cqt = rospy.get_param("~log_max_raw_cqt", False)
@@ -373,8 +376,8 @@ class OnsetDetector:
             # wait= 0.1*self.sr/self.hop_length,
             delta=self.onset_delta, # TODO: scale delta as 1.96 * stddev of last seconds
             normalize=False,
-            pre_max= 0.3*self.sr//self.hop_length,
-            post_max= 0.3*self.sr//self.hop_length,
+            pre_max= self.ctx_pre*self.sr//self.hop_length,
+            post_max= self.ctx_post*self.sr//self.hop_length,
         )
 
         def in_window(o):
