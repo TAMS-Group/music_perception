@@ -237,12 +237,13 @@ class OnsetDetector:
         self.last_envelope = envelope[self.overlap_hops:-self.overlap_hops]
 
     def fundamental_frequency_for_onset(self, onset):
-        prediction_averaging_window = (
-            0.1 * self.sr
-        )  # at most self.window_overlap to make sure the data exists
+        # sum at most self.window_overlap to make sure the data exists
+        prediction_averaging_window = 0.1 # prediction window
+        transient_duration = 0.08 # skip transient
+
         excerpt = self.buffer[
-            int(onset * self.sr):
-                int(onset * self.sr + prediction_averaging_window)
+            int((onset+transient_duration) * self.sr):
+                int((onset+transient_duration+prediction_averaging_window) * self.sr)
         ]
         time, freq, confidence, _ = crepe.predict(
             excerpt,
