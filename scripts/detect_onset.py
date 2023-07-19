@@ -77,7 +77,9 @@ class OnsetDetector:
 
         self.onset_delta = rospy.get_param("~onset_delta", 3.0)
         self.ctx_pre = rospy.get_param("~ctx_pre", 0.3)
-        self.ctx_post = rospy.get_param("~ctx_post", 0.3)
+        self.ctx_pre_hops = self.ctx_pre*self.sr//self.hop_length
+        self.ctx_post = rospy.get_param("~ctx_post", 0.3)*self.sr//self.hop_length
+        self.ctx_post_hops = self.ctx_post*self.sr//self.hop_length
 
         self.perceptual_weighting = rospy.get_param("~perceptual_weighting", True)
         self.log_max_raw_cqt = rospy.get_param("~log_max_raw_cqt", False)
@@ -238,8 +240,8 @@ class OnsetDetector:
 
     def fundamental_frequency_for_onset(self, onset):
         # sum at most self.window_overlap to make sure the data exists
-        prediction_averaging_window = 0.1 # prediction window
-        transient_duration = 0.08 # skip transient
+        prediction_averaging_window = self.ctx_post # prediction window
+        transient_duration = 0.06 # seconds / expected maximum length of transient transient
 
         excerpt = self.buffer[
             int((onset+transient_duration) * self.sr):
@@ -377,8 +379,8 @@ class OnsetDetector:
             # wait= 0.1*self.sr/self.hop_length,
             delta=self.onset_delta, # TODO: scale delta as 1.96 * stddev of last seconds
             normalize=False,
-            pre_max= self.ctx_pre*self.sr//self.hop_length,
-            post_max= self.ctx_post*self.sr//self.hop_length,
+            pre_max= self.ctx_pre_hops,
+            post_max= self.ctx_post_hops,
         )
 
         def in_window(o):
