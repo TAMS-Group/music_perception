@@ -182,6 +182,9 @@ class OnsetDetector:
 
         self.last_envelope = None
 
+    def harmonics_for_cqt_index(self, fundamental_note_idx):
+        return np.array([fundamental_note_idx + i for i in (0, 12, 19, 24, 28, 31, 35, 36) if fundamental_note_idx + i < self.semitones])
+
     @property
     def current_drift(self) -> rospy.Duration:
         return self.drift_per_hour * (self.buffer_time - self.startup_time).to_sec() / 3600.0
@@ -410,11 +413,11 @@ class OnsetDetector:
                 no.note = librosa.hz_to_note(fundamental_frequency)
                 no.confidence = confidence
 
-                # look at ~300ms window (~25 samples) after onset
+                # look at ctx_post after onset to determine maximum loudness
                 onset_hop = int(o * self.sr / self.hop_length)
                 note_idx= librosa.note_to_midi(no.note) - self.min_midi
                 try:
-                    no.loudness = cqt[note_idx, onset_hop:onset_hop+25].max()
+                    no.loudness = np.log(np.exp(cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]).sum(axis=0)).max()
                 except IndexError:
                     no.loudness = 0.0
 
