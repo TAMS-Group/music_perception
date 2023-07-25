@@ -77,9 +77,9 @@ class OnsetDetector:
 
         self.onset_delta = rospy.get_param("~onset_delta", 3.0)
         self.ctx_pre = rospy.get_param("~ctx_pre", 0.3)
-        self.ctx_pre_hops = self.ctx_pre*self.sr//self.hop_length
-        self.ctx_post = rospy.get_param("~ctx_post", 0.3)*self.sr//self.hop_length
-        self.ctx_post_hops = self.ctx_post*self.sr//self.hop_length
+        self.ctx_pre_hops = int(self.ctx_pre*self.sr/self.hop_length)
+        self.ctx_post = rospy.get_param("~ctx_post", 0.3)
+        self.ctx_post_hops = int(self.ctx_post*self.sr/self.hop_length)
 
         self.perceptual_weighting = rospy.get_param("~perceptual_weighting", True)
         self.log_max_raw_cqt = rospy.get_param("~log_max_raw_cqt", False)
