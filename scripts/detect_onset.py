@@ -437,7 +437,7 @@ class OnsetDetector:
         rospy.loginfo_once("onset detection is online")
         compute_time = rospy.Time.now() - now
         self.pub_compute_time.publish(compute_time.to_sec())
-        if compute_time > rospy.Duration(self.window):
+        if compute_time > rospy.Duration(self.window_t):
             rospy.logerr("computation took longer than processed window")
         self.pub_drift.publish(self.current_drift.to_sec())
 
