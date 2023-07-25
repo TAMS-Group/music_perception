@@ -417,7 +417,11 @@ class OnsetDetector:
                 onset_hop = int(o * self.sr / self.hop_length)
                 note_idx= librosa.note_to_midi(no.note) - self.min_midi
                 try:
-                    no.loudness = np.log(np.exp(cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]).sum(axis=0)).max()
+                    onset_harmonics = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]
+                    loudness_dba = np.log(np.exp(onset_harmonics).sum(axis=0))
+                    max_idx = loudness_dba.argmax()
+                    no.loudness = loudness_dba[max_idx]
+                    no.spectrum = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops][max_idx]
                 except IndexError:
                     no.loudness = 0.0
 

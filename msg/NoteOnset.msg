@@ -10,3 +10,6 @@ float32 loudness
 
 # duration of note (optional, as determining it takes might take longer)
 duration duration
+
+# spectrum at max loudness (optional, frequencies and unit are implementation-dependent, usually dB)
+float32[] spectrum
