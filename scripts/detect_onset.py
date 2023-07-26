@@ -232,8 +232,12 @@ class OnsetDetector:
         if self.last_envelope is not None and self.pub_envelope.get_num_connections() > 0:
             fig = plt.figure(dpi= 300)
             fig.gca().set_title("Onset envelope")
-            fig.gca().plot(np.concatenate((self.last_envelope, envelope[self.overlap_hops:-self.overlap_hops])))
-            fig.gca().set_ylim((0, np.max((5, np.max(envelope)))))
+            fig.gca().plot(np.concatenate((
+                    self.last_envelope,
+                    envelope[self.overlap_hops:-self.overlap_hops]
+                )))
+            fig.gca().set_ylim(0, np.max((4, np.max(envelope))))
+            #fig.gca().axhline(1.0, 0, envelope, color="red")
             fig.canvas.draw()
             w, h = fig.canvas.get_width_height()
             env_img = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8).reshape(h, w, 3)
