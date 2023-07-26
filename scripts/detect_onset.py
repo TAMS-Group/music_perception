@@ -374,7 +374,7 @@ class OnsetDetector:
         self.publish_cqt(cqt)
 
         onset_env_cqt = librosa.onset.onset_strength(
-            sr=self.sr, S=cqt
+            sr=self.sr, S=cqt, aggregate= np.median
         )
         onsets_cqt_raw = librosa.onset.onset_detect(
             y=self.buffer,
