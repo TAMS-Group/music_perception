@@ -420,14 +420,11 @@ class OnsetDetector:
                 # look at ctx_post after onset to determine maximum loudness
                 onset_hop = int(o * self.sr / self.hop_length)
                 note_idx= librosa.note_to_midi(no.note) - self.min_midi
-                try:
-                    onset_harmonics = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]
-                    loudness_dba = np.log(np.exp(onset_harmonics).sum(axis=0))
-                    max_idx = loudness_dba.argmax()
-                    no.loudness = loudness_dba[max_idx]
-                    no.spectrum = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops][max_idx]
-                except IndexError:
-                    no.loudness = 0.0
+                onset_harmonics = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]
+                loudness_dba = np.log(np.exp(onset_harmonics).sum(axis=0))
+                max_idx = loudness_dba.argmax()
+                no.loudness = loudness_dba[max_idx]
+                no.spectrum = onset_harmonics[:, max_idx]
 
                 rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB")
 
