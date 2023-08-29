@@ -13,3 +13,6 @@ duration duration
 
 # spectrum at max loudness (optional, frequencies and unit are implementation-dependent, usually dB)
 float32[] spectrum
+
+# index of the detected note in the spectrum (required when spectrum is filled in)
+int32 spectrum_index

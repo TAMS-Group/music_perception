@@ -424,8 +424,8 @@ class OnsetDetector:
                 loudness_dba = np.log(np.exp(onset_harmonics).sum(axis=0))
                 max_idx = loudness_dba.argmax()
                 no.loudness = loudness_dba[max_idx]
-                no.spectrum = onset_harmonics[:, max_idx]
-
+                no.spectrum = cqt[:, onset_hop+max_idx]
+                no.spectrum_index = note_idx
                 rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB")
 
             self.pub_onset.publish(no)
