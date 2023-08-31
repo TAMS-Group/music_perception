@@ -80,6 +80,8 @@ class OnsetDetector:
         self.ctx_pre_hops = int(self.ctx_pre*self.sr/self.hop_length)
         self.ctx_post = rospy.get_param("~ctx_post", 0.3)
         self.ctx_post_hops = int(self.ctx_post*self.sr/self.hop_length)
+        self.transient_duration = rospy.get_param("~transient_duration", 0.06) # seconds / expected maximum length of note onset transient
+        self.transient_duration_hops = int(self.transient_duration*self.sr/self.hop_length)
 
         self.perceptual_weighting = rospy.get_param("~perceptual_weighting", True)
         self.log_max_raw_cqt = rospy.get_param("~log_max_raw_cqt", False)
@@ -183,7 +185,12 @@ class OnsetDetector:
         self.last_envelope = None
 
     def harmonics_for_cqt_index(self, fundamental_note_idx):
-        return np.array([fundamental_note_idx + i for i in (0, 12, 19, 24, 28, 31, 35, 36) if fundamental_note_idx + i < self.semitones])
+        harmonics_offsets = np.array((0, 12, 19, 24, 28, 31, 35, 36))
+        fundamental_note_idx = fundamental_note_idx.reshape(-1,1)
+        I = np.repeat(fundamental_note_idx, len(harmonics_offsets), axis= 1) + harmonics_offsets
+        # limit to harmonics that exist for all requested fundamental indices
+        max_h = np.any(I >= self.semitones, axis= 0).nonzero()[0]
+        return I if len(max_h) == 0 else I[:, :max_h[0]]
 
     @property
     def current_drift(self) -> rospy.Duration:
@@ -248,11 +255,10 @@ class OnsetDetector:
     def fundamental_frequency_for_onset(self, onset):
         # sum at most self.window_overlap to make sure the data exists
         prediction_averaging_window = self.ctx_post # prediction window
-        transient_duration = 0.06 # seconds / expected maximum length of transient transient
 
         excerpt = self.buffer[
-            int((onset+transient_duration) * self.sr):
-                int((onset+transient_duration+prediction_averaging_window) * self.sr)
+            int((onset+self.transient_duration) * self.sr):
+                int((onset+self.transient_duration+prediction_averaging_window) * self.sr)
         ]
         time, freq, confidence, _ = crepe.predict(
             excerpt,
@@ -420,13 +426,28 @@ class OnsetDetector:
                 # look at ctx_post after onset to determine maximum loudness
                 onset_hop = int(o * self.sr / self.hop_length)
                 note_idx= librosa.note_to_midi(no.note) - self.min_midi
-                onset_harmonics = cqt[self.harmonics_for_cqt_index(note_idx), onset_hop:onset_hop+self.ctx_post_hops]
-                loudness_dba = np.log(np.exp(onset_harmonics).sum(axis=0))
-                max_idx = loudness_dba.argmax()
-                no.loudness = loudness_dba[max_idx]
-                no.spectrum = cqt[:, onset_hop+max_idx]
-                no.spectrum_index = note_idx
-                rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB")
+                if note_idx < 0 or note_idx >= self.semitones:
+                    rospy.logwarn(f"note {no.note} is out of range, ignoring")
+                    continue
+
+                # neighborhood = np.arange(*neighborhood_range)
+                neighborhood = np.array([0, -3, -2, 2, 3]) + note_idx
+                neighborhood = neighborhood[(neighborhood >= 0) & (neighborhood < self.semitones)]
+
+                neighborhood_harmonics_indices = self.harmonics_for_cqt_index(neighborhood)
+                after_transient = onset_hop + self.transient_duration_hops
+                onset_harmonics = cqt[neighborhood_harmonics_indices, after_transient:after_transient+self.ctx_post_hops]
+                loudness_harm_dba = np.log(np.exp(onset_harmonics).sum(axis=1))
+                loudness_dba = np.log(np.exp(onset_harmonics[:,:3,:]).sum(axis=1))
+
+                max_idx = loudness_harm_dba[0, :].argmax()
+                no.loudness = loudness_harm_dba[0, max_idx]
+                no.neighborhood_context = (loudness_dba[0] - loudness_dba[1:, :].max(axis=0))[:int(0.1*self.sr/self.hop_length)].sum()
+
+                # no.spectrum = cqt[:, onset_hop+max_idx]
+                # no.spectrum_index = note_idx
+
+                rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB{'A' if self.perceptual_weighting else ''} / energy fraction {no.neighborhood_context:.2f}")
 
             self.pub_onset.publish(no)
 

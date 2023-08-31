@@ -16,3 +16,6 @@ float32[] spectrum
 
 # index of the detected note in the spectrum (required when spectrum is filled in)
 int32 spectrum_index
+
+# (implementation-dependent)
+float32 neighborhood_context
