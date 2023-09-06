@@ -438,7 +438,8 @@ class OnsetDetector:
                 after_transient = onset_hop + self.transient_duration_hops
                 onset_harmonics = cqt[neighborhood_harmonics_indices, after_transient:after_transient+self.ctx_post_hops]
                 loudness_harm_dba = np.log(np.exp(onset_harmonics).sum(axis=1))
-                loudness_dba = np.log(np.exp(onset_harmonics[:,:3,:]).sum(axis=1))
+                # loudness_dba = onset_harmonics[:, 0, :]
+                loudness_dba = np.log(np.exp(onset_harmonics[:,:4,:]).sum(axis=1))
 
                 max_idx = loudness_harm_dba[0, :].argmax()
                 no.loudness = loudness_harm_dba[0, max_idx]
@@ -447,7 +448,7 @@ class OnsetDetector:
                 # no.spectrum = cqt[:, onset_hop+max_idx]
                 # no.spectrum_index = note_idx
 
-                rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB{'A' if self.perceptual_weighting else ''} / energy fraction {no.neighborhood_context:.2f}")
+                rospy.loginfo(f"at {t.to_sec():.4F} found conf. {no.confidence:.2f} / note {no.note:>2} / vol {no.loudness:.2f}dB{'A' if self.perceptual_weighting else ''} / F0 dominence integral {no.neighborhood_context:.2f}")
 
             self.pub_onset.publish(no)
 
