@@ -12,10 +12,14 @@ import sys
 from tempfile import TemporaryDirectory
 
 if len(sys.argv) != 2:
-    print(f"Usage: {sys.argv[0]} <input.ly>")
+    print(f"Usage: {sys.argv[0]} {{<input.ly>|lilypond-string}}")
     sys.exit(1)
 
-ly= open(sys.argv[1], 'r').read()
+try:
+    ly= open(sys.argv[1], 'r').read()
+except FileNotFoundError:
+    # assume argv[1] is a core lilypond string, e.g., "d4\pppp e fis2 a4\mf fis2 e4 d4"
+    ly= R'\version "2.20.0"' R"\score { \unfoldRepeats { \relative c' { " + str(sys.argv[1]) + " } } \midi { tempo = 60 } }"
 
 piece = piece_from_ly(ly)
 rospy.init_node('ly2piece')
